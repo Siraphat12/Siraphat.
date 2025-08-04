@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>siraphat</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Sarabun', sans-serif;
+      background: #f0f8ff;
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1, h2 {
+      color: #1a237e;
+    }
+    .form-group {
+      margin-bottom: 12px;
+    }
+    label {
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      margin-top: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #3949ab;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #303f9f;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 25px;
+    }
+    th, td {
+      border: 1px solid #bbb;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #e3f2fd;
+    }
+    canvas {
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>บันทึกการใส่หมวกกันน็อก</h1>
+
+  <div class="form-group">
+    <label>ชื่อผู้กรอก:</label>
+    <input type="text" id="nameInput" placeholder="เช่น เด็กชายเอ" />
+  </div>
+
+  <div class="form-group">
+    <label>ชั้นเรียน:</label>
+    <input type="text" id="classInput" placeholder="เช่น ม.2/1" />
+  </div>
+
+  <div class="form-group">
+    <label>วันที่:</label>
+    <input type="date" id="dateInput" />
+  </div>
+
+  <div class="form-group">
+    <label>การใส่หมวกกันน็อก:</label>
+    <select id="helmetChoice">
+      <option value="ใส่">ใส่หมวกกันน็อก</option>
+      <option value="ไม่ใส่">ไม่ใส่หมวกกันน็อก</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>จำนวนคน:</label>
+    <input type="number" id="amountInput" min="1" value="1" />
+  </div>
+
+  <button onclick="addEntry()">เพิ่มข้อมูล</button>
+  <button onclick="clearAll()" style="background-color:#e53935; margin-left: 10px;">ล้างข้อมูลทั้งหมด</button>
+
+  <h2 id="chartTitle">กราฟสรุปจำนวน</h2>
+  <canvas id="helmetChart"></canvas>
+
+  <h2>ตารางข้อมูลที่บันทึก</h2>
+  <table id="summaryTable">
+    <thead>
+      <tr>
+        <th>ชื่อ</th>
+        <th>ชั้นเรียน</th>
+        <th>วันที่</th>
+        <th>วันในสัปดาห์</th>
+        <th>ประเภท</th>
+        <th>จำนวนคน</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let summaryData = [];
+    let chart;
+
+    function getDayName(dateStr) {
+      const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+      const date = new Date(dateStr);
+      return days[date.getDay()];
+    }
+
+    function addEntry() {
+      const name = document.getElementById("nameInput").value.trim();
+      const className = document.getElementById("classInput").value.trim();
+      const date = document.getElementById("dateInput").value;
+      const choice = document.getElementById("helmetChoice").value;
+      const amount = parseInt(document.getElementById("amountInput").value);
+
+      if (!name || !className || !date || isNaN(amount) || amount <= 0) {
+        alert("กรุณากรอกข้อมูลให้ครบและถูกต้อง");
+        return;
+      }
+
+      const dayName = getDayName(date);
+
+      summaryData.push({ name, className, date, dayName, choice, amount });
+      updateTable();
+      updateChart();
+    }
+
+    function updateTable() {
+      const tbody = document.getElementById("summaryTable").querySelector("tbody");
+      tbody.innerHTML = "";
+
+      summaryData.forEach(entry => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${entry.name}</td>
+          <td>${entry.className}</td>
+          <td>${entry.date}</td>
+          <td>${entry.dayName}</td>
+          <td>${entry.choice}</td>
+          <td>${entry.amount}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function updateChart() {
+      const total = { 'ใส่': 0, 'ไม่ใส่': 0 };
+      summaryData.forEach(entry => {
+        total[entry.choice] += entry.amount;
+      });
+
+      const labels = ["ใส่หมวกกันน็อก", "ไม่ใส่หมวกกันน็อก"];
+      const values = [total['ใส่'], total['ไม่ใส่']];
+      const colors = ['#4caf50', '#f44336'];
+
+      document.getElementById('chartTitle').innerText =
+        `กราฟสรุปจำนวน (ใส่: ${total['ใส่']} คน, ไม่ใส่: ${total['ไม่ใส่']} คน)`;
+
+      if (chart) {
+        chart.data.datasets[0].data = values;
+        chart.update();
+      } else {
+        const ctx = document.getElementById('helmetChart').getContext('2d');
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'จำนวนคน',
+              data: values,
+              backgroundColor: colors,
+              borderRadius: 10
+            }]
+          },
+          options: {
+            responsive: true,
+            indexAxis: 'y',
+            scales: {
+              x: {
+                beginAtZero: true,
+                title: { display: true, text: 'จำนวนคน' }
+              }
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: ctx => ` ${ctx.label}: ${ctx.raw} คน`
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    function clearAll() {
+      if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลทั้งหมด?")) {
+        summaryData = [];
+        updateTable();
+        updateChart();
+        document.getElementById('chartTitle').innerText = "กราฟสรุปจำนวน";
+      }
+    }
+  </script>
+
+</body>
+</html>
+
